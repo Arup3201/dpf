@@ -123,9 +123,6 @@ const mockData: Stock[] = [
 
 export default function Dashboard() {
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [addStock, setAddStock] = useState(false);
-  const searchedStock = useRef<HTMLInputElement>(null);
-
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const columns = useMemo<ColumnDef<Stock>[]>(
@@ -397,26 +394,6 @@ export default function Dashboard() {
     return data;
   };
 
-  const searchSymbol = async () => {
-    if (!searchedStock.current) return;
-
-    const symbol = searchedStock.current.value;
-
-    const stock = stocks.find((stock) => stock.symbol === symbol);
-    if (stock) {
-      console.log("stock already added....");
-      return;
-    }
-
-    try {
-      const stockData = await fetchStock(symbol);
-      setStocks((prev) => [...prev, stockData]);
-    } catch (error) {
-      console.error(error);
-      console.log("Couldn't fetch stock data...");
-    }
-  };
-
   const totalInvestment = 2000;
   const totalCurrentValue = 2450;
   const totalGainLoss = 450;
@@ -424,23 +401,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 min-h-screen">
-      <div className="flex gap-5">
-        <button
-          className="mb-2 rounded-xl p-2 shadow-md border border-blue-700 bg-blue-700 text-white font-medium cursor-pointer hover:bg-blue-800 hover:border-blue-800"
-          onClick={() => setAddStock(true)}
-        >
-          Add Stock
-        </button>
-        {addStock && (
-          <div>
-            <input
-              placeholder="Search by stock symbol..."
-              ref={searchedStock}
-            />
-            <button onClick={() => searchSymbol()}>Search</button>
-          </div>
-        )}
-      </div>
+      <AddStock stocks={stocks} onStockAdd={() => {}} />
 
       {/* Header */}
       <div className="mb-8">
@@ -580,48 +541,58 @@ export default function Dashboard() {
   );
 }
 
-function AddStock({stocks, onStockAdd}) {
+function AddStock({ stocks, onStockAdd }) {
+  const searchQuery = useRef<HTMLInputElement>(null);
   const [showForm, setShowForm] = useState(false);
-  const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<string[]>([]);
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
-  const [addedStocks, setAddedStocks] = useState<string[]>([]);
   const [stockData, setStockData] = useState({
-    purchasePrice: '',
-    quantity: '',
-    purchaseDate: '',
+    purchasePrice: "",
+    quantity: "",
+    purchaseDate: "",
   });
 
-  const filteredStocks = allStocks.filter(stock =>
-    stock.toLowerCase().includes(query.toLowerCase())
-  );
-
-  const handleStockSelect = (stock: string) => {
-    if (addedStocks.includes(stock)) {
+  const handleStockSelect = (symbol: string) => {
+    if (stocks.find((stock) => stock.symbol === symbol)) {
       alert("This stock is already added.");
       return;
     }
-    setSelectedStock(stock);
   };
 
   const handleFormSubmit = () => {
-    if (!stockData.purchasePrice || !stockData.quantity || !stockData.purchaseDate) {
+    if (
+      !stockData.purchasePrice ||
+      !stockData.quantity ||
+      !stockData.purchaseDate
+    ) {
       alert("Please fill all fields.");
       return;
     }
 
-    setAddedStocks(prev => [...prev, selectedStock!]);
+    onStockAdd(selectedStock);
     alert(`${selectedStock} added!`);
     setSelectedStock(null);
-    setStockData({ purchasePrice: '', quantity: '', purchaseDate: '' });
-    setQuery('');
+    setShowForm(false);
+  };
+
+  const searchStocks = async (query: string) => {
+    if (!query) return;
+
+    try {
+      const results = await api.searchStock(query);
+      setSearchResults(results.map((stock) => stock.symbol));
+    } catch (err) {
+      alert("Failed to search stocks ...");
+      return;
+    }
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6 bg-white rounded-xl shadow-lg">
+    <div className="flex gap-2 items-center mb-2">
       {!showForm && (
         <button
           onClick={() => setShowForm(true)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg text-lg font-medium"
+          className="bg-blue-700 hover:bg-blue-700 text-white p-2 px-4 rounded-lg text-lg font-medium"
         >
           Add Stock
         </button>
@@ -629,17 +600,19 @@ function AddStock({stocks, onStockAdd}) {
 
       {showForm && (
         <div className="mt-6 space-y-4">
-          <input
-            type="text"
-            placeholder="Search stock..."
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div className="flex gap-1 items-center">
+            <input
+              ref={searchQuery}
+              type="text"
+              placeholder="Search stock..."
+              className="border bg-white text-black border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button className="border bg-white text-black border-gray-300 px-4 py-2 rounded-sm">Search</button>
+          </div>
 
           {!selectedStock && (
-            <ul className="bg-white border rounded-md max-h-48 overflow-y-auto shadow-md">
-              {filteredStocks.map(stock => (
+            <ul className="relative bg-white border rounded-md max-h-48 overflow-y-auto shadow-md">
+              {searchResults.map((stock) => (
                 <li
                   key={stock}
                   className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
@@ -648,7 +621,7 @@ function AddStock({stocks, onStockAdd}) {
                   {stock}
                 </li>
               ))}
-              {filteredStocks.length === 0 && (
+              {searchResults.length === 0 && (
                 <li className="px-4 py-2 text-gray-500">No results found</li>
               )}
             </ul>
@@ -667,7 +640,10 @@ function AddStock({stocks, onStockAdd}) {
                   className="w-full border border-gray-300 rounded-md px-4 py-2"
                   value={stockData.purchasePrice}
                   onChange={(e) =>
-                    setStockData({ ...stockData, purchasePrice: e.target.value })
+                    setStockData({
+                      ...stockData,
+                      purchasePrice: e.target.value,
+                    })
                   }
                 />
                 <input
@@ -699,7 +675,7 @@ function AddStock({stocks, onStockAdd}) {
                 <button
                   onClick={() => {
                     setSelectedStock(null);
-                    setQuery('');
+                    setQuery("");
                   }}
                   className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100"
                 >
