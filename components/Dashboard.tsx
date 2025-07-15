@@ -18,6 +18,7 @@ import {
   Target,
   BarChart3,
   Building2,
+  Loader2,
 } from "lucide-react";
 import { api } from "@/utils/api";
 
@@ -541,40 +542,35 @@ export default function Dashboard() {
   );
 }
 
-const allStocks = [
-  "Apple (AAPL)",
-  "Microsoft (MSFT)",
-  "Amazon (AMZN)",
-  "Google (GOOGL)",
-  "Tesla (TSLA)",
-  "NVIDIA (NVDA)",
-  "Meta (META)",
-  "Netflix (NFLX)",
-  "Intel (INTC)",
-  "Adobe (ADBE)",
-];
+function AddStock({ stocks, onStockAdd }) {
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
 
-function AddStock({stocks, onStockAdd}) {
   const [showForm, setShowForm] = useState(false);
-  const [query, setQuery] = useState('');
   const [filteredStocks, setFilteredStocks] = useState<string[]>([]);
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
-  const [addedStocks, setAddedStocks] = useState<string[]>([]);
   const [stockData, setStockData] = useState({
-    purchasePrice: '',
-    quantity: '',
-    purchaseDate: '',
+    purchasePrice: "",
+    quantity: "",
+    purchaseDate: "",
   });
 
-  const handleSearchClick = () => {
-    const results = allStocks.filter(stock =>
-      stock.toLowerCase().includes(query.toLowerCase())
-    );
-    setFilteredStocks(results);
+  const handleSearchClick = async () => {
+    setSearching(true);
+    try {
+      const matches = await api.searchStock(query);
+      const results = matches.map((stock) => stock.symbol);
+      setFilteredStocks(results);
+    } catch (err) {
+      console.log("Failed to search stocks by qeury...");
+      return;
+    } finally {
+      setSearching(false);
+    }
   };
 
   const handleStockSelect = (stock: string) => {
-    if (addedStocks.includes(stock)) {
+    if (stocks.includes(stock)) {
       alert("This stock is already added.");
       return;
     }
@@ -583,16 +579,20 @@ function AddStock({stocks, onStockAdd}) {
   };
 
   const handleFormSubmit = () => {
-    if (!stockData.purchasePrice || !stockData.quantity || !stockData.purchaseDate) {
+    if (
+      !stockData.purchasePrice ||
+      !stockData.quantity ||
+      !stockData.purchaseDate
+    ) {
       alert("Please fill all fields.");
       return;
     }
 
-    setAddedStocks(prev => [...prev, selectedStock!]);
+    onStockAdd(selectedStock);
     alert(`${selectedStock} added!`);
     setSelectedStock(null);
-    setStockData({ purchasePrice: '', quantity: '', purchaseDate: '' });
-    setQuery('');
+    setStockData({ purchasePrice: "", quantity: "", purchaseDate: "" });
+    setQuery("");
   };
 
   return (
@@ -618,19 +618,28 @@ function AddStock({stocks, onStockAdd}) {
             />
             <button
               onClick={handleSearchClick}
-              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 cursor-pointer"
+              disabled={searching}
+              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 cursor-pointer flex gap-1 items-center"
             >
+              {searching && <Loader2 className="animate-spin " />}
               Search
             </button>
-            <button className="bg-white text-black px-4 py-2 rounded-md cursor-pointer" onClick={() => setShowForm(false)}>
+            <button
+              className="bg-white text-black px-4 py-2 rounded-md cursor-pointer"
+              onClick={() => {
+                setQuery("");
+                setShowForm(false);
+                setSelectedStock(null);
+              }}
+            >
               Cancel
             </button>
           </div>
 
           {/* Dropdown */}
           {filteredStocks.length > 0 && !selectedStock && (
-            <ul className="absolute top-[100%] left-0 w-full z-10 mt-2 bg-white border rounded-md shadow-lg max-h-56 overflow-y-auto">
-              {filteredStocks.map(stock => (
+            <ul className="absolute top-[100%] left-0 w-full z-10 mt-2 border rounded-md bg-white text-black shadow-lg max-h-56 overflow-y-auto">
+              {filteredStocks.map((stock) => (
                 <li
                   key={stock}
                   onClick={() => handleStockSelect(stock)}
@@ -645,8 +654,8 @@ function AddStock({stocks, onStockAdd}) {
           {/* Stock Details Form */}
           {selectedStock && (
             <div className="space-y-4 pt-2">
-              <div className="text-lg font-semibold text-gray-800">
-                Adding: <span className="text-blue-600">{selectedStock}</span>
+              <div className="text-lg font-semibold">
+                Adding: <span className="text-blue-500">{selectedStock}</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -656,7 +665,10 @@ function AddStock({stocks, onStockAdd}) {
                   className="w-full border border-gray-300 rounded-md px-4 py-2"
                   value={stockData.purchasePrice}
                   onChange={(e) =>
-                    setStockData({ ...stockData, purchasePrice: e.target.value })
+                    setStockData({
+                      ...stockData,
+                      purchasePrice: e.target.value,
+                    })
                   }
                 />
                 <input
@@ -688,9 +700,9 @@ function AddStock({stocks, onStockAdd}) {
                 <button
                   onClick={() => {
                     setSelectedStock(null);
-                    setQuery('');
+                    setQuery("");
                   }}
-                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100"
+                  className="border border-gray-300 bg-white text-black px-4 py-2 rounded-md hover:bg-gray-100"
                 >
                   Cancel
                 </button>

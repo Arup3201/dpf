@@ -6,8 +6,8 @@ export const api = {
   },
 
   // Search stocks by company name
-  searchStock: async (symbol: string) => {
-    const response = await fetch(`/api/search?q=${symbol}`);
+  searchStock: async (query: string) => {
+    const response = await fetch(`/api/search?q=${query}`);
     return response.json();
   },
 
