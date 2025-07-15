@@ -541,94 +541,110 @@ export default function Dashboard() {
   );
 }
 
-function AddStock({ stocks, onStockAdd }) {
-  const searchQuery = useRef<HTMLInputElement>(null);
+const allStocks = [
+  "Apple (AAPL)",
+  "Microsoft (MSFT)",
+  "Amazon (AMZN)",
+  "Google (GOOGL)",
+  "Tesla (TSLA)",
+  "NVIDIA (NVDA)",
+  "Meta (META)",
+  "Netflix (NFLX)",
+  "Intel (INTC)",
+  "Adobe (ADBE)",
+];
+
+function AddStock({stocks, onStockAdd}) {
   const [showForm, setShowForm] = useState(false);
-  const [searchResults, setSearchResults] = useState<string[]>([]);
+  const [query, setQuery] = useState('');
+  const [filteredStocks, setFilteredStocks] = useState<string[]>([]);
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
+  const [addedStocks, setAddedStocks] = useState<string[]>([]);
   const [stockData, setStockData] = useState({
-    purchasePrice: "",
-    quantity: "",
-    purchaseDate: "",
+    purchasePrice: '',
+    quantity: '',
+    purchaseDate: '',
   });
 
-  const handleStockSelect = (symbol: string) => {
-    if (stocks.find((stock) => stock.symbol === symbol)) {
+  const handleSearchClick = () => {
+    const results = allStocks.filter(stock =>
+      stock.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredStocks(results);
+  };
+
+  const handleStockSelect = (stock: string) => {
+    if (addedStocks.includes(stock)) {
       alert("This stock is already added.");
       return;
     }
+    setSelectedStock(stock);
+    setFilteredStocks([]);
   };
 
   const handleFormSubmit = () => {
-    if (
-      !stockData.purchasePrice ||
-      !stockData.quantity ||
-      !stockData.purchaseDate
-    ) {
+    if (!stockData.purchasePrice || !stockData.quantity || !stockData.purchaseDate) {
       alert("Please fill all fields.");
       return;
     }
 
-    onStockAdd(selectedStock);
+    setAddedStocks(prev => [...prev, selectedStock!]);
     alert(`${selectedStock} added!`);
     setSelectedStock(null);
-    setShowForm(false);
-  };
-
-  const searchStocks = async (query: string) => {
-    if (!query) return;
-
-    try {
-      const results = await api.searchStock(query);
-      setSearchResults(results.map((stock) => stock.symbol));
-    } catch (err) {
-      alert("Failed to search stocks ...");
-      return;
-    }
+    setStockData({ purchasePrice: '', quantity: '', purchaseDate: '' });
+    setQuery('');
   };
 
   return (
-    <div className="flex gap-2 items-center mb-2">
+    <div className="mb-6">
       {!showForm && (
         <button
           onClick={() => setShowForm(true)}
-          className="bg-blue-700 hover:bg-blue-700 text-white p-2 px-4 rounded-lg text-lg font-medium"
+          className="bg-blue-700 hover:bg-blue-800 text-white py-3 px-4 rounded-md text-lg font-medium"
         >
           Add Stock
         </button>
       )}
 
       {showForm && (
-        <div className="mt-6 space-y-4">
-          <div className="flex gap-1 items-center">
+        <div className="mt-6 space-y-4 relative">
+          <div className="flex gap-2">
             <input
-              ref={searchQuery}
               type="text"
               placeholder="Search stock..."
-              className="border bg-white text-black border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
             />
-            <button className="border bg-white text-black border-gray-300 px-4 py-2 rounded-sm">Search</button>
+            <button
+              onClick={handleSearchClick}
+              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 cursor-pointer"
+            >
+              Search
+            </button>
+            <button className="bg-white text-black px-4 py-2 rounded-md cursor-pointer" onClick={() => setShowForm(false)}>
+              Cancel
+            </button>
           </div>
 
-          {!selectedStock && (
-            <ul className="relative bg-white border rounded-md max-h-48 overflow-y-auto shadow-md">
-              {searchResults.map((stock) => (
+          {/* Dropdown */}
+          {filteredStocks.length > 0 && !selectedStock && (
+            <ul className="absolute top-[100%] left-0 w-full z-10 mt-2 bg-white border rounded-md shadow-lg max-h-56 overflow-y-auto">
+              {filteredStocks.map(stock => (
                 <li
                   key={stock}
-                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => handleStockSelect(stock)}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                 >
                   {stock}
                 </li>
               ))}
-              {searchResults.length === 0 && (
-                <li className="px-4 py-2 text-gray-500">No results found</li>
-              )}
             </ul>
           )}
 
+          {/* Stock Details Form */}
           {selectedStock && (
-            <div className="space-y-4">
+            <div className="space-y-4 pt-2">
               <div className="text-lg font-semibold text-gray-800">
                 Adding: <span className="text-blue-600">{selectedStock}</span>
               </div>
@@ -640,10 +656,7 @@ function AddStock({ stocks, onStockAdd }) {
                   className="w-full border border-gray-300 rounded-md px-4 py-2"
                   value={stockData.purchasePrice}
                   onChange={(e) =>
-                    setStockData({
-                      ...stockData,
-                      purchasePrice: e.target.value,
-                    })
+                    setStockData({ ...stockData, purchasePrice: e.target.value })
                   }
                 />
                 <input
@@ -675,7 +688,7 @@ function AddStock({ stocks, onStockAdd }) {
                 <button
                   onClick={() => {
                     setSelectedStock(null);
-                    setQuery("");
+                    setQuery('');
                   }}
                   className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-100"
                 >
