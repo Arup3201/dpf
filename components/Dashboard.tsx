@@ -680,14 +680,6 @@ function AddStock({ stocks, onStockAdd }) {
                     setStockData({ ...stockData, quantity: e.target.value })
                   }
                 />
-                <input
-                  type="date"
-                  className="w-full md:col-span-2 border border-gray-300 rounded-md px-4 py-2"
-                  value={stockData.purchaseDate}
-                  onChange={(e) =>
-                    setStockData({ ...stockData, purchaseDate: e.target.value })
-                  }
-                />
               </div>
 
               <div className="flex gap-4">
