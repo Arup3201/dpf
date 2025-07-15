@@ -39,88 +39,6 @@ interface Stock {
   latestEarnings: number;
 }
 
-const mockData: Stock[] = [
-  {
-    id: "1",
-    symbol: "RELIANCE",
-    name: "Reliance Industries Ltd",
-    purchasePrice: 2500,
-    quantity: 10,
-    investment: 25000,
-    portfolioPercentage: 35.2,
-    exchange: "NSE",
-    currentPrice: 2650,
-    presentValue: 26500,
-    gainLoss: 1500,
-    gainLossPercent: 6.0,
-    peRatio: 15.2,
-    latestEarnings: 174.5,
-  },
-  {
-    id: "2",
-    symbol: "TCS",
-    name: "Tata Consultancy Services",
-    purchasePrice: 3200,
-    quantity: 5,
-    investment: 16000,
-    portfolioPercentage: 23.5,
-    exchange: "NSE",
-    currentPrice: 3350,
-    presentValue: 16750,
-    gainLoss: 750,
-    gainLossPercent: 4.69,
-    peRatio: 28.5,
-    latestEarnings: 117.8,
-  },
-  {
-    id: "3",
-    symbol: "INFY",
-    name: "Infosys Limited",
-    purchasePrice: 1450,
-    quantity: 15,
-    investment: 21750,
-    portfolioPercentage: 29.8,
-    exchange: "NSE",
-    currentPrice: 1420,
-    presentValue: 21300,
-    gainLoss: -450,
-    gainLossPercent: -2.07,
-    peRatio: 24.3,
-    latestEarnings: 58.4,
-  },
-  {
-    id: "4",
-    symbol: "HDFCBANK",
-    name: "HDFC Bank Limited",
-    purchasePrice: 1580,
-    quantity: 8,
-    investment: 12640,
-    portfolioPercentage: 17.1,
-    exchange: "NSE",
-    currentPrice: 1620,
-    presentValue: 12960,
-    gainLoss: 320,
-    gainLossPercent: 2.53,
-    peRatio: 18.7,
-    latestEarnings: 86.9,
-  },
-  {
-    id: "5",
-    symbol: "ICICIBANK",
-    name: "ICICI Bank Limited",
-    purchasePrice: 950,
-    quantity: 12,
-    investment: 11400,
-    portfolioPercentage: 15.4,
-    exchange: "NSE",
-    currentPrice: 1025,
-    presentValue: 12300,
-    gainLoss: 900,
-    gainLossPercent: 7.89,
-    peRatio: 16.2,
-    latestEarnings: 63.2,
-  },
-];
 
 export default function Dashboard() {
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -379,7 +297,7 @@ export default function Dashboard() {
   );
 
   const table = useReactTable({
-    data: mockData,
+    data: stocks,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -395,10 +313,16 @@ export default function Dashboard() {
     return data;
   };
 
-  const totalInvestment = 2000;
-  const totalCurrentValue = 2450;
-  const totalGainLoss = 450;
-  const totalGainLossPercent = 40;
+  const totalInvestment = stocks.reduce((acc, cur) => acc + cur.investment, 0);
+  const totalCurrentValue = stocks.reduce(
+    (acc, cur) => acc + cur.presentValue,
+    0
+  );
+  const totalGainLoss = stocks.reduce(
+    (acc, cur) => acc + (cur.presentValue - cur.investment),
+    0
+  );
+  const totalGainLossPercent = (totalGainLoss / totalInvestment) * 100;
 
   return (
     <div className="max-w-7xl mx-auto p-6 min-h-screen">
@@ -472,14 +396,18 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-400">Overall Return</p>
-              <p
-                className={`text-2xl font-bold ${
-                  totalGainLoss >= 0 ? "text-green-400" : "text-red-400"
-                }`}
-              >
-                {totalGainLoss >= 0 ? "+" : ""}
-                {totalGainLossPercent.toFixed(2)}%
-              </p>
+              {totalInvestment !== 0 ? (
+                <p
+                  className={`text-2xl font-bold ${
+                    totalGainLoss >= 0 ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {totalGainLoss >= 0 ? "+" : ""}
+                  {totalGainLossPercent.toFixed(2)}%
+                </p>
+              ) : (
+                <p className={`text-2xl font-bold`}>N/A</p>
+              )}
             </div>
             <div className="bg-purple-900 p-3 rounded-lg">
               <BarChart3 className="text-purple-400" size={24} />
