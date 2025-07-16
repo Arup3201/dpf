@@ -39,7 +39,6 @@ interface Stock {
   latestEarnings: number;
 }
 
-
 export default function Dashboard() {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -307,10 +306,30 @@ export default function Dashboard() {
     onSortingChange: setSorting,
   });
 
-  const fetchStock = async (symbol: string) => {
-    const response = await api.getStockPrice(symbol);
-    const data = await response.json();
-    return data;
+  const handleStockAdd = async (symbol: string, price: number, quantity: number) => {
+    try {
+      const data = await api.getStockPrice(symbol);
+      const newStock: Stock = {
+        id: data[0].symbol,
+        symbol: data[0].symbol,
+        name: data[0].name,
+        purchasePrice: price, 
+        quantity: quantity, 
+        investment: price*quantity, 
+        portfolioPercentage: 0, 
+        exchange: data[0].exchange, 
+        currentPrice: data[0].price, 
+        presentValue: data[0].price*quantity, 
+        gainLoss: data[0].price*quantity - price*quantity, 
+        gainLossPercent: (data[0].price*quantity - price*quantity) / (price*quantity),
+        peRatio: 0, 
+        latestEarnings: 0
+      }
+      setStocks((stocksSnapshot) => [newStock, ...stocksSnapshot])
+    } catch (err) {
+      console.log(err);
+      return;
+    }
   };
 
   const totalInvestment = stocks.reduce((acc, cur) => acc + cur.investment, 0);
@@ -326,7 +345,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 min-h-screen">
-      <AddStock stocks={stocks} onStockAdd={() => {}} />
+      <AddStock stocks={stocks} onStockAdd={handleStockAdd} />
 
       {/* Header */}
       <div className="mb-8">
@@ -480,15 +499,16 @@ function AddStock({ stocks, onStockAdd }) {
   const [stockData, setStockData] = useState({
     purchasePrice: "",
     quantity: "",
-    purchaseDate: "",
   });
 
   const handleSearchClick = async () => {
     setSearching(true);
     try {
       const matches = await api.searchStock(query);
-      const results = matches.map((stock) => stock.symbol);
-      setFilteredStocks(results);
+      const results = matches.map((stock: Stock) => stock.symbol);
+
+      // filter out any tickers with specific class
+      setFilteredStocks(results.filter((st: string) => !st.includes(".")));
     } catch (err) {
       console.log("Failed to search stocks by qeury...");
       return;
@@ -506,21 +526,22 @@ function AddStock({ stocks, onStockAdd }) {
     setFilteredStocks([]);
   };
 
-  const handleFormSubmit = () => {
-    if (
-      !stockData.purchasePrice ||
-      !stockData.quantity ||
-      !stockData.purchaseDate
-    ) {
+  const handleFormSubmit = async () => {
+    if (!stockData.purchasePrice || !stockData.quantity) {
       alert("Please fill all fields.");
       return;
     }
 
-    onStockAdd(selectedStock);
-    alert(`${selectedStock} added!`);
-    setSelectedStock(null);
-    setStockData({ purchasePrice: "", quantity: "", purchaseDate: "" });
-    setQuery("");
+    try {
+      await onStockAdd(selectedStock, stockData.purchasePrice, stockData.quantity);
+      alert(`${selectedStock} added!`);
+      setSelectedStock(null);
+      setStockData({ purchasePrice: "", quantity: "" });
+      setQuery("");
+    } catch (err) {
+      alert("Failed to add the stock");
+      return;
+    }
   };
 
   return (
