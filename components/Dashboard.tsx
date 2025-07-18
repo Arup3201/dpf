@@ -306,32 +306,6 @@ export default function Dashboard() {
     onSortingChange: setSorting,
   });
 
-  const handleStockAdd = async (symbol: string, price: number, quantity: number) => {
-    try {
-      const data = await api.getStockPrice(symbol);
-      const newStock: Stock = {
-        id: data[0].symbol,
-        symbol: data[0].symbol,
-        name: data[0].name,
-        purchasePrice: price, 
-        quantity: quantity, 
-        investment: price*quantity, 
-        portfolioPercentage: 0, 
-        exchange: data[0].exchange, 
-        currentPrice: data[0].price, 
-        presentValue: data[0].price*quantity, 
-        gainLoss: data[0].price*quantity - price*quantity, 
-        gainLossPercent: (data[0].price*quantity - price*quantity) / (price*quantity),
-        peRatio: 0, 
-        latestEarnings: 0
-      }
-      setStocks((stocksSnapshot) => [newStock, ...stocksSnapshot])
-    } catch (err) {
-      console.log(err);
-      return;
-    }
-  };
-
   const totalInvestment = stocks.reduce((acc, cur) => acc + cur.investment, 0);
   const totalCurrentValue = stocks.reduce(
     (acc, cur) => acc + cur.presentValue,
@@ -342,6 +316,40 @@ export default function Dashboard() {
     0
   );
   const totalGainLossPercent = (totalGainLoss / totalInvestment) * 100;
+
+  const handleStockAdd = async (
+    symbol: string,
+    price: number,
+    quantity: number
+  ) => {
+    try {
+      const data = await api.getStockPrice(symbol);
+
+      const investment = price * quantity;
+      const current = data.price * quantity;
+
+      const newStock: Stock = {
+        id: data.symbol,
+        symbol: data.symbol,
+        name: data.name,
+        purchasePrice: price,
+        quantity: quantity,
+        investment: investment,
+        portfolioPercentage: Math.round((investment / (totalInvestment+investment)) * 100),
+        exchange: data.exchange,
+        currentPrice: data.price,
+        presentValue: current,
+        gainLoss: current - investment,
+        gainLossPercent: (current - investment) / investment,
+        peRatio: data.peratio,
+        latestEarnings: data.eps,
+      };
+      setStocks((stocksSnapshot) => [newStock, ...stocksSnapshot]);
+    } catch (err) {
+      console.log(err);
+      return;
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-6 min-h-screen">
@@ -505,10 +513,12 @@ function AddStock({ stocks, onStockAdd }) {
     setSearching(true);
     try {
       const matches = await api.searchStock(query);
-      const results = matches.map((stock: Stock) => stock.symbol);
+      const results = matches.map(
+        (stock: any) => stock.symbol
+      );
 
       // filter out any tickers with specific class
-      setFilteredStocks(results.filter((st: string) => !st.includes(".")));
+      setFilteredStocks(results);
     } catch (err) {
       console.log("Failed to search stocks by qeury...");
       return;
@@ -533,7 +543,11 @@ function AddStock({ stocks, onStockAdd }) {
     }
 
     try {
-      await onStockAdd(selectedStock, stockData.purchasePrice, stockData.quantity);
+      await onStockAdd(
+        selectedStock,
+        stockData.purchasePrice,
+        stockData.quantity
+      );
       alert(`${selectedStock} added!`);
       setSelectedStock(null);
       setStockData({ purchasePrice: "", quantity: "" });
@@ -543,6 +557,13 @@ function AddStock({ stocks, onStockAdd }) {
       return;
     }
   };
+
+  function reset() {
+    setQuery("");
+    setShowForm(false);
+    setFilteredStocks([]);
+    setSelectedStock(null);
+  }
 
   return (
     <div className="mb-6">
@@ -575,11 +596,7 @@ function AddStock({ stocks, onStockAdd }) {
             </button>
             <button
               className="bg-white text-black px-4 py-2 rounded-md cursor-pointer"
-              onClick={() => {
-                setQuery("");
-                setShowForm(false);
-                setSelectedStock(null);
-              }}
+              onClick={reset}
             >
               Cancel
             </button>
